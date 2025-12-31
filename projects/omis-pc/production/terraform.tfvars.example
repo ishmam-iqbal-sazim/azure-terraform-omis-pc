@@ -1,0 +1,13 @@
+# =============================================================================
+# OMIS PC Production Environment - Example Variables
+# =============================================================================
+# Copy this file to terraform.tfvars and fill in the values
+
+# Database password (required)
+db_admin_password = "YourSecureProductionPassword123!"
+
+# Optional overrides
+# resource_group_name = "sazim-3dif-omis-pc-prod"
+# location            = "westus"
+# vm_size             = "Standard_D4ps_v5"
+# acr_name            = "omispcacrprod"
