@@ -11,7 +11,7 @@ variable "location" {
   description = "Azure region for all resources"
   type        = string
   # default     = "australiacentral"
-  default     = "westus"
+  default = "westus"
 }
 
 # =============================================================================
@@ -20,10 +20,7 @@ variable "location" {
 variable "vm_size" {
   description = "Size of the virtual machine"
   type        = string
-  default     = "Standard_D4ds_v6" # x64 (4 vCPUs, 16GB RAM) - latest generation
-  # Fallback options if Standard_D4ds_v6 is not available:
-  # default     = "Standard_D4as_v6"  # AMD-based alternative (4 vCPUs, 16GB RAM)
-  # default     = "Standard_D4s_v3"   # Older generation (4 vCPUs, 16GB RAM)
+  default     = "Standard_D2s_v3" # 2 vCPU, 8GB RAM - cost-optimized (B-series unavailable in westus)
 }
 
 variable "vm_admin_username" {

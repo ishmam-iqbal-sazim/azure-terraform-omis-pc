@@ -433,6 +433,110 @@ sudo apt-get install postgresql-client
 psql "postgresql://omispcadmin:OmisPC2024!SecureProd@omis-pc-prod-db.postgres.database.azure.com:5432/omis_pc_db?sslmode=require"
 ```
 
+### Issue: Backend fails with "db-ca-certificate.crt" not found
+
+If the backend container fails with:
+```
+Error: ENOENT: no such file or directory, open '/usr/src/certs/db-ca-certificate.crt'
+```
+
+**Cause**: Azure PostgreSQL requires SSL certificate verification in production. The backend code expects this certificate at `/usr/src/certs/db-ca-certificate.crt`.
+
+**Solution (if backend repo is updated)**: The backend's startup script should download the certificate automatically.
+
+**Solution (if backend repo is NOT updated)** - Manual workaround:
+```bash
+# Download the certificate on the VM
+ssh azureuser@<VM-IP>
+mkdir -p /opt/omis-pc/certs
+curl -fsSL -o /opt/omis-pc/certs/db-ca-certificate.crt \
+  https://cacerts.digicert.com/BaltimoreCyberTrustRoot.crt.pem
+chmod 644 /opt/omis-pc/certs/db-ca-certificate.crt
+
+# Update docker-compose.yml to mount the certs
+cat > /opt/omis-pc/docker-compose.yml << 'EOF'
+version: '3.8'
+
+services:
+  frontend:
+    image: ${REGISTRY}/omis-pc/fe:${FE_TAG:-latest}
+    container_name: frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    networks:
+      - omis-pc-network
+
+  backend:
+    image: ${REGISTRY}/omis-pc/be:${BE_TAG:-latest}
+    container_name: backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+      - "5001:5001"
+    env_file:
+      - .env
+    volumes:
+      - ./certs:/usr/src/certs:ro
+    networks:
+      - omis-pc-network
+    depends_on:
+      - csvtomdb
+
+  csvtomdb:
+    image: ${REGISTRY}/omis-pc/csvtomdb-service:${CSV_TAG:-latest}
+    container_name: csvtomdb
+    restart: unless-stopped
+    expose:
+      - "8080"
+    env_file:
+      - .env
+    networks:
+      - omis-pc-network
+
+networks:
+  omis-pc-network:
+    driver: bridge
+EOF
+
+# Restart the backend
+cd /opt/omis-pc
+docker compose restart backend
+```
+
+**Long-term fix**: Update the backend repository to download the certificate at startup. Add this to the backend's entrypoint script:
+```bash
+#!/bin/bash
+mkdir -p /usr/src/certs
+if [ ! -f /usr/src/certs/db-ca-certificate.crt ]; then
+  curl -fsSL -o /usr/src/certs/db-ca-certificate.crt \
+    https://cacerts.digicert.com/BaltimoreCyberTrustRoot.crt.pem
+fi
+exec "$@"
+```
+
+### Issue: SSH key not working after VM creation
+
+If SSH connections are rejected even with the correct key:
+
+**Cause**: Cloud-init may fail to add SSH keys to `authorized_keys` in some cases.
+
+**Solution** (manually add the key via Azure CLI):
+```bash
+# Add SSH key to VM using Azure CLI
+az vm run-command invoke --command-id RunShellScript \
+  --name omis-pc-prod-vm \
+  --resource-group sazim-3dif-omis-pc-prod \
+  --scripts "mkdir -p /home/azureuser/.ssh && chmod 700 /home/azureuser/.ssh && echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCbp3moLswLCpi6K9rr7MWKrrXyUJzsMGa8hy9SuiDW1lGm4xYc2e19eVNuU7xBGctOK0/hG1+6AHNgk3bokqyxaw6lS8A+L2CQWSBKmJpAhWJMqiBvARDDxEy75o/OsWFzNuofziah2PTgMB6k7c8eKmtSHBB3gpTX5iUMuo+FzV+JBM48b6JKyiBKuISbg1hBgytyFnpbLD8OyBE81g6DLWteG8bH8+snoS4Ulh0DjkL2o2vqD3ghFZQExemPgGtfAcbBZ7HrdAf8jczMdpL7pzT9lbmDW4a0nHhUe0lHsTiyCty+SjDzAGw8tGQkNScYYY/N6iTFfgjPHY2lr9xGeeNNVTcKiVrKDc5GJkp6+qG/CDSRmfrKRADlMQ85kA60ptdmm4yGlpFuGOEM5qq53hGufjGihuST+iSneR8CSXJtVCpNGAX1+RAi6gX9a+4ZqJ3qpBX5V/SoxA+0pUofACxn9Uj5r/Vccsib0SPQq6Ehf43774cGJy1r86Tr/LYBgTWC3uu7AQew3qgmJFY5xCGhNSPms1Spcb1b3ce8ektYajyPiFxzfY6mHKcplTfARtc9YQwLHFE1XlJ0pJZFjqSS+mdTf+spLmS6nL0bxdscBjYnZk98J6513D2lItbCfPByluj5HmSREfgBh+unorJ9L7/iCj5iApbUtmofhQ== azure' >> /home/azureuser/.ssh/authorized_keys && chmod 600 /home/azureuser/.ssh/authorized_keys"
+```
+
+Then test SSH:
+```bash
+ssh -o "IdentitiesOnly=yes" -i ~/.ssh/id_rsa -o StrictHostKeyChecking=no azureuser@<VM-IP>
+```
+
 ---
 
 ## Application URLs

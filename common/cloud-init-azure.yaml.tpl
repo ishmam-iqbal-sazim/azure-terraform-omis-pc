@@ -126,7 +126,7 @@ write_files:
 
       services:
         frontend:
-          image: $${REGISTRY}/omis-pc/fe:$${FE_TAG:-latest}
+          image: ${REGISTRY}/omis-pc/fe:${FE_TAG:-latest}
           container_name: frontend
           restart: unless-stopped
           ports:
@@ -137,7 +137,7 @@ write_files:
             - omis-pc-network
 
         backend:
-          image: $${REGISTRY}/omis-pc/be:$${BE_TAG:-latest}
+          image: ${REGISTRY}/omis-pc/be:${BE_TAG:-latest}
           container_name: backend
           restart: unless-stopped
           ports:
@@ -151,7 +151,7 @@ write_files:
             - csvtomdb
 
         csvtomdb:
-          image: $${REGISTRY}/omis-pc/csvtomdb-service:$${CSV_TAG:-latest}
+          image: ${REGISTRY}/omis-pc/csvtomdb-service:${CSV_TAG:-latest}
           container_name: csvtomdb
           restart: unless-stopped
           expose:

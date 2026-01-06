@@ -85,7 +85,7 @@ Then edit `development/variables.tf` to use smaller resource sizes:
 
 | Resource | Specification |
 |----------|---------------|
-| VM Size | Standard_D4ps_v5 (4 vCPU, 16GB) |
+| VM Size | Standard_D2s_v3 (2 vCPU, 8GB RAM) |
 | DB SKU | B_Standard_B2ms (2 vCores, 4GB) |
 | DB Storage | 64GB |
 | ACR SKU | Standard |
